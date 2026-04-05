@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nexus OS</title>
+<style>
+/* ═══════════════════════════════════════════════════════════
+   NEXUS OS — DESIGN SYSTEM
+   Dark, terminal-native OS aesthetic. Teal accent. Monospace.
+   ═══════════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+
+:root {
+  color-scheme: dark;
+  --bg: #08090c;
+  --desktop: #0b0d12;
+  --surface: #111318;
+  --surface-2: #181b22;
+  --surface-3: #1f222b;
+  --border: #262a35;
+  --border-hi: #363b4a;
+  --text: #d2d5de;
+  --text-dim: #6b7089;
+  --text-muted: #3e4255;
+  --accent: #34d399;
+  --accent-dim: rgba(52, 211, 153, 0.12);
+  --accent-glow: rgba(52, 211, 153, 0.25);
+  --danger: #ef4444;
+  --warn: #f59e0b;
+  --info: #3b82f6;
+  --font: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', monospace;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --taskbar-h: 44px;
+  --titlebar-h: 32px;
+  --z-desktop: 1;
+  --z-window: 10;
+  --z-window-active: 20;
+  --z-taskbar: 100;
+  --z-launcher: 200;
+  --z-overlay: 300;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  user-select: none;
+}
+
+/* ── DESKTOP ── */
+#nx-desktop {
+  position: fixed;
+  inset: 0;
+  bottom: var(--taskbar-h);
+  background: var(--desktop);
+  overflow: hidden;
+  z-index: var(--z-desktop);
+}
+
+/* subtle grid pattern on desktop */
+#nx-desktop::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 1px 1px, var(--border) 0.5px, transparent 0.5px);
+  background-size: 32px 32px;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+/* ── DESKTOP ICONS ── */
+.nx-desktop-icon {
+  position: absolute;
+  width: 72px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.nx-desktop-icon:hover { background: var(--accent-dim); }
+.nx-desktop-icon:active { background: var(--accent-glow); }
+.nx-desktop-icon .icon-glyph {
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.nx-desktop-icon .icon-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-align: center;
+  line-height: 1.2;
+  word-break: break-word;
+  max-width: 72px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+
+/* ── WINDOWS ── */
+.nx-window {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.2);
+  transition: box-shadow 150ms ease;
+  min-width: 320px;
+  min-height: 200px;
+}
+.nx-window.active {
+  border-color: var(--border-hi);
+  box-shadow: 0 12px 48px rgba(0,0,0,0.6), 0 0 0 1px var(--border-hi), 0 0 40px rgba(52, 211, 153, 0.04);
+}
+.nx-window.minimized { display: none !important; }
+.nx-window.maximized {
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0;
+}
+
+/* Title bar */
+.nx-titlebar {
+  height: var(--titlebar-h);
+  min-height: var(--titlebar-h);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  cursor: grab;
+  gap: 8px;
+}
+.nx-titlebar:active { cursor: grabbing; }
+.nx-titlebar-title {
+  flex: 1;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+.nx-window.active .nx-titlebar-title { color: var(--text); }
+.nx-titlebar-dot {
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  transition: opacity 120ms;
+  opacity: 0.7;
+}
+.nx-titlebar-dot:hover { opacity: 1; }
+.nx-titlebar-dot.close { background: var(--danger); }
+.nx-titlebar-dot.minimize { background: var(--warn); }
+.nx-titlebar-dot.maximize { background: var(--accent); }
+
+/* Window content — the iframe lives here */
+.nx-window-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+.nx-window-content iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* Resize handle */
+.nx-resize-handle {
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 16px; height: 16px;
+  cursor: nwse-resize;
+  z-index: 2;
+}
+.nx-resize-handle::after {
+  content: '';
+  position: absolute;
+  bottom: 3px; right: 3px;
+  width: 8px; height: 8px;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+}
+
+/* ── TASKBAR ── */
+#nx-taskbar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: var(--taskbar-h);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  z-index: var(--z-taskbar);
+  gap: 2px;
+}
+
+#nx-launcher-btn {
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent-dim);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--accent);
+  font-size: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 120ms;
+}
+#nx-launcher-btn:hover {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+}
+
+#nx-taskbar-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--border);
+  margin: 0 6px;
+  flex-shrink: 0;
+}
+
+#nx-taskbar-apps {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  overflow-x: auto;
+  align-items: center;
+}
+#nx-taskbar-apps::-webkit-scrollbar { height: 0; }
+
+.nx-taskbar-item {
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  font-size: 11px;
+  color: var(--text-dim);
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 120ms;
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+.nx-taskbar-item:hover { background: var(--surface-2); color: var(--text); }
+.nx-taskbar-item.active {
+  background: var(--surface-2);
+  color: var(--accent);
+  border-color: var(--border);
+}
+.nx-taskbar-item.minimized { color: var(--text-muted); font-style: italic; }
+.nx-taskbar-item .item-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.nx-taskbar-item.minimized .item-dot { background: var(--text-muted); }
+
+#nx-taskbar-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  flex-shrink: 0;
+  padding-right: 8px;
+}
+#nx-taskbar-clock {
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+#nx-taskbar-stats {
+  font-size: 10px;
+  color: var(--text-muted);
+  display: flex;
+  gap: 8px;
+}
+.nx-stat-pill {
+  padding: 2px 6px;
+  background: var(--surface-2);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+/* ── LAUNCHER ── */
+#nx-launcher {
+  position: fixed;
+  bottom: calc(var(--taskbar-h) + 8px);
+  left: 8px;
+  width: 280px;
+  background: var(--surface);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 64px rgba(0,0,0,0.6);
+  z-index: var(--z-launcher);
+  display: none;
+  overflow: hidden;
+}
+#nx-launcher.open { display: block; }
+#nx-launcher-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+}
+#nx-launcher-header h3 {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+#nx-launcher-search {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
+  padding: 7px 10px;
+  outline: none;
+}
+#nx-launcher-search:focus { border-color: var(--accent); }
+#nx-launcher-search::placeholder { color: var(--text-muted); }
+#nx-launcher-list {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 6px;
+}
+.nx-launcher-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 100ms;
+}
+.nx-launcher-item:hover { background: var(--accent-dim); }
+.nx-launcher-item .app-icon {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  flex-shrink: 0;
+}
+.nx-launcher-item .app-info { flex: 1; min-width: 0; }
+.nx-launcher-item .app-name { font-size: 12px; color: var(--text); font-weight: 500; }
+.nx-launcher-item .app-desc { font-size: 10px; color: var(--text-dim); margin-top: 1px; }
+#nx-launcher-footer {
+  padding: 8px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ── CONTEXT MENU ── */
+.nx-context-menu {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  z-index: var(--z-overlay);
+  min-width: 160px;
+  padding: 4px;
+  font-size: 12px;
+}
+.nx-context-item {
+  padding: 7px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nx-context-item:hover { background: var(--accent-dim); color: var(--text); }
+.nx-context-sep { height: 1px; background: var(--border); margin: 3px 8px; }
+
+/* ── NOTIFICATION TOAST ── */
+.nx-toast {
+  position: fixed;
+  top: 16px; right: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  font-size: 12px;
+  color: var(--text);
+  z-index: var(--z-overlay);
+  animation: nx-toast-in 200ms ease;
+  max-width: 320px;
+}
+@keyframes nx-toast-in { from { opacity:0; transform: translateY(-8px); } }
+
+/* scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- Desktop workspace -->
+<div id="nx-desktop"></div>
+
+<!-- Taskbar -->
+<div id="nx-taskbar">
+  <div id="nx-launcher-btn" title="Launcher">⬡</div>
+  <div id="nx-taskbar-divider"></div>
+  <div id="nx-taskbar-apps"></div>
+  <div id="nx-taskbar-status">
+    <div id="nx-taskbar-stats">
+      <span class="nx-stat-pill" id="nx-stat-folder" style="cursor:pointer;transition:all 120ms" title="Mount a folder">📁 no folder</span>
+      <span class="nx-stat-pill" id="nx-stat-blocks">0 blocks</span>
+      <span class="nx-stat-pill" id="nx-stat-violations">0 violations</span>
+    </div>
+    <div id="nx-taskbar-clock"></div>
+  </div>
+</div>
+
+<!-- Launcher -->
+<div id="nx-launcher">
+  <div id="nx-launcher-header">
+    <h3>Nexus OS</h3>
+    <input id="nx-launcher-search" type="text" placeholder="Search apps..." autocomplete="off">
+  </div>
+  <div id="nx-launcher-list"></div>
+  <div id="nx-launcher-footer">
+    <span>Kernel v4.0</span>
+    <span id="nx-launcher-uptime"></span>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // Forward declarations — filled in by Section 2 and Section 3
+  let Kernel = null;
+  let Shell = { scheduleRender() {}, createWindow() {} };
+
+  /* ═══════════════════════════════════════════════════════════
+     SECTION 1 — KERNEL (from v3.4.2 bulletproof, adapted)
+     Process isolation, IPC, lifecycle, security — unchanged.
+     Only additions: window awareness, app manifest fields.
+     ═══════════════════════════════════════════════════════════ */
+
+  const SETTINGS = Object.freeze({
+    watchdogMs: 9000,
+    maxRetries: 2,
+    stableMountResetMs: 5000,
+    reaperIntervalMs: 3000,
+    pongDeadlineMs: 9000,
+    pingGraceMs: 12000,
+    pingIntervalFloorMs: 2000,
+    payloadLimitBytes: 8192,
+    payloadMaxDepth: 8,
+    payloadMaxNodes: 512,
+    payloadMaxKeysPerObject: 128,
+    payloadMaxArrayLength: 256,
+    dataLimiterCapacity: 12,
+    dataLimiterRefillPerSec: 10,
+    controlLimiterCapacity: 8,
+    controlLimiterRefillPerSec: 4,
+    maxRateStrikes: 6,
+    maxManifestChannels: 32,
+    maxSubscriptionsPerBlock: 32,
+    maxChannelNameLen: 64,
+    maxManifestBytes: 2048,
+    maxBlocks: 32,
+    feedMax: 500
+  });
+
+  const CHANNEL_RE = /^[a-z0-9._-]{1,64}$/;
+  const BLOCKS = new Map();
+  const PORT_ID = new WeakMap();
+  const CHANNEL_SUBS = new Map();
+  const FEED = [];
+  const PERSISTED = new Map();
+  const COUNTERS = {
+    totalAccepted: 0,
+    totalDelivered: 0,
+    totalViolations: 0,
+    totalReloads: 0,
+    totalEvictions: 0,
+    bootTime: Date.now()
+  };
+
+  const CONTROL_TYPES = new Set(["DECLARE", "SUB", "PONG", "MOUNT_ACK"]);
+
+  // ── Feed / logging ──
+  function pushFeed(level, message) {
+    const entry = { at: Date.now(), level, message: String(message) };
+    if (FEED.length >= SETTINGS.feedMax) FEED.shift();
+    FEED.push(entry);
+    Shell.scheduleRender();
+  }
+
+  // ── Token bucket rate limiter ──
+  function makeBucket(capacity) {
+    return { tokens: capacity, lastRefillAt: Date.now() };
+  }
+  function consumeBucket(bucket, capacity, refillPerSec) {
+    const now = Date.now();
+    const elapsed = Math.max(0, (now - bucket.lastRefillAt) / 1000);
+    let potential = Math.min(capacity, bucket.tokens + elapsed * refillPerSec);
+    if (potential < 1) return false;
+    bucket.tokens = potential - 1;
+    bucket.lastRefillAt = now;
+    return true;
+  }
+
+  // ── Payload sanitizer ──
+  function sanitizePayload(payload) {
+    const seen = new WeakSet();
+    let bytes = 0, nodes = 0;
+
+    function walk(value, depth) {
+      if (depth > SETTINGS.payloadMaxDepth) throw new Error("payload too deep");
+      if (value === null) return null;
+      const t = typeof value;
+      if (t === "string") {
+        bytes += value.length;
+        if (bytes > SETTINGS.payloadLimitBytes) throw new Error("payload too large");
+        return value;
+      }
+      if (t === "number" || t === "boolean") return value;
+      if (t === "undefined") return null;
+      if (t === "bigint" || t === "function" || t === "symbol") throw new Error("unsupported type");
+      if (seen.has(value)) throw new Error("cycle detected");
+      seen.add(value);
+      nodes++;
+      if (nodes > SETTINGS.payloadMaxNodes) throw new Error("too complex");
+
+      if (Array.isArray(value)) {
+        if (value.length > SETTINGS.payloadMaxArrayLength) throw new Error("array too long");
+        return value.map(item => walk(item, depth + 1));
+      }
+
+      const proto = Object.getPrototypeOf(value);
+      if (proto !== Object.prototype && proto !== null) throw new Error("prototype not allowed");
+      const keys = Object.keys(value);
+      if (keys.length > SETTINGS.payloadMaxKeysPerObject) throw new Error("object too wide");
+      const out = {};
+      for (const key of keys) {
+        if (key === "__proto__" || key === "constructor" || key === "prototype") throw new Error("forbidden key");
+        bytes += key.length;
+        if (bytes > SETTINGS.payloadLimitBytes) throw new Error("payload too large");
+        out[key] = walk(value[key], depth + 1);
+      }
+      return out;
+    }
+    return walk(payload, 0);
+  }
+
+  // ── Channel subscriptions ──
+  function removeFromChannels(blockId) {
+    for (const [ch, subs] of Array.from(CHANNEL_SUBS.entries())) {
+      subs.delete(blockId);
+      if (subs.size === 0) CHANNEL_SUBS.delete(ch);
+    }
+  }
+
+  // ── Persistence (in-memory for block state across reloads) ──
+  function persistBlockState(block) {
+    PERSISTED.set(block.id, {
+      desiredSubscriptions: new Set(block.desiredSubscriptions),
+      retryCount: block.retryCount,
+      url: block.url
+    });
+  }
+  function forgetPersisted(id) { PERSISTED.delete(id); }
+
+  // ── Metrics ──
+  function noteAccepted(block, kind) {
+    block.metrics.accepted++;
+    block.metrics.lastAcceptedKind = kind;
+    COUNTERS.totalAccepted++;
+  }
+
+  function violation(block, reason) {
+    block.metrics.violations++;
+    COUNTERS.totalViolations++;
+    pushFeed("WARN", `${block.id} violation: ${reason}`);
+    if (block.metrics.violations >= 6) evictBlock(block.id, "violation threshold");
+    Shell.scheduleRender();
+  }
+
+  function rateStrike(block, reason) {
+    block.metrics.rateStrikes++;
+    pushFeed("WARN", `${block.id} rate limited: ${reason}`);
+    if (block.metrics.rateStrikes >= SETTINGS.maxRateStrikes) evictBlock(block.id, `rate abuse: ${reason}`);
+    Shell.scheduleRender();
+  }
+
+  // ── Block cleanup / eviction ──
+  function cleanupBlock(block) {
+    clearTimeout(block.watchdogTimer);
+    clearTimeout(block.retryResetTimer);
+    removeFromChannels(block.id);
+    try { block.port.close(); } catch (_) {}
+    // Remove window or hidden iframe
+    if (block.windowEl && block.windowEl.parentNode) block.windowEl.parentNode.removeChild(block.windowEl);
+    if (block.iframe && block.iframe.parentNode) block.iframe.parentNode.removeChild(block.iframe);
+    BLOCKS.delete(block.id);
+    Shell.scheduleRender();
+  }
+
+  function evictBlock(id, reason) {
+    const block = BLOCKS.get(id);
+    if (!block) return;
+    block.state = "EVICTED";
+    COUNTERS.totalEvictions++;
+    pushFeed("BAD", `${id} evicted: ${reason}`);
+    forgetPersisted(id);
+    cleanupBlock(block);
+  }
+
+  // ── Subscriptions ──
+  function activateSubscriptions(block) {
+    removeFromChannels(block.id);
+    block.activeSubscriptions = new Set();
+    for (const ch of block.desiredSubscriptions) {
+      if (!block.manifest.consumes.includes(ch)) continue;
+      if (!CHANNEL_SUBS.has(ch)) CHANNEL_SUBS.set(ch, new Set());
+      CHANNEL_SUBS.get(ch).add(block.id);
+      block.activeSubscriptions.add(ch);
+    }
+  }
+
+  // ── Message delivery ──
+  function deliverMessage(srcId, channel, payload) {
+    const subs = CHANNEL_SUBS.get(channel);
+    if (!subs || subs.size === 0) return;
+    for (const targetId of subs) {
+      const target = BLOCKS.get(targetId);
+      if (!target || target.state !== "MOUNTED") continue;
+      try {
+        target.port.postMessage({ type: "MSG", src: srcId, channel, payload });
+        target.metrics.delivered++;
+        COUNTERS.totalDelivered++;
+      } catch (_) {
+        violation(target, `delivery failure on ${channel}`);
+      }
+    }
+  }
+
+  // ── Watchdog / health ──
+  function armWatchdog(block) {
+    clearTimeout(block.watchdogTimer);
+    block.watchdogTimer = setTimeout(() => {
+      const live = BLOCKS.get(block.id);
+      if (!live) return;
+      if (live.state !== "MOUNTED") {
+        pushFeed("WARN", `${live.id} watchdog triggered`);
+        reloadBlock(live.id, "watchdog timeout");
+      }
+    }, SETTINGS.watchdogMs);
+  }
+
+  function scheduleRetryReset(block) {
+    clearTimeout(block.retryResetTimer);
+    block.retryResetTimer = setTimeout(() => {
+      const live = BLOCKS.get(block.id);
+      if (!live || live.state !== "MOUNTED") return;
+      live.retryCount = 0;
+      persistBlockState(live);
+    }, SETTINGS.stableMountResetMs);
+  }
+
+  function pingBlock(block) {
+    const now = Date.now();
+    let newest = 0;
+    for (const sentAt of block.outstandingPings.values()) if (sentAt > newest) newest = sentAt;
+    if (newest && (now - newest) < SETTINGS.pingIntervalFloorMs) return;
+    const nonce = crypto.randomUUID();
+    block.outstandingPings.set(nonce, now);
+    try { block.port.postMessage({ type: "PING", nonce }); } catch (_) { evictBlock(block.id, "ping failed"); }
+  }
+
+  function reapBlocks() {
+    const now = Date.now();
+    for (const block of Array.from(BLOCKS.values())) {
+      for (const [nonce, sentAt] of Array.from(block.outstandingPings.entries())) {
+        if ((now - sentAt) > SETTINGS.pingGraceMs) block.outstandingPings.delete(nonce);
+      }
+      if (block.state === "MOUNTED" && (now - block.lastPongAt) > SETTINGS.pongDeadlineMs) {
+        evictBlock(block.id, "reaper timeout");
+        continue;
+      }
+      if (block.state === "MOUNTED") pingBlock(block);
+    }
+  }
+
+  function reloadBlock(id, reason) {
+    const old = BLOCKS.get(id);
+    if (!old) return;
+    const carrySubs = new Set(old.desiredSubscriptions);
+    const nextRetry = old.retryCount + 1;
+    const url = old.url;
+    const appMeta = old.appMeta;
+    cleanupBlock(old);
+    COUNTERS.totalReloads++;
+    if (nextRetry > SETTINGS.maxRetries) {
+      pushFeed("BAD", `${id} exceeded max retries`);
+      forgetPersisted(id);
+      return;
+    }
+    PERSISTED.set(id, { desiredSubscriptions: carrySubs, retryCount: nextRetry, url });
+    pushFeed("WARN", `${id} reloading (${reason}), retry ${nextRetry}`);
+    spawnBlock(id, url, { carriedSubscriptions: carrySubs, retryCount: nextRetry, appMeta });
+  }
+
+  // ── Manifest normalization ──
+  function normalizeChannelList(list, field) {
+    if (!Array.isArray(list)) return [];
+    const seen = new Set();
+    const out = [];
+    for (const item of list) {
+      if (typeof item !== "string") throw new Error(`${field} entries must be strings`);
+      if (item.length > SETTINGS.maxChannelNameLen) throw new Error(`${field} entry too long`);
+      if (!CHANNEL_RE.test(item)) throw new Error(`${field} invalid characters`);
+      if (seen.has(item)) continue;
+      seen.add(item);
+      out.push(item);
+      if (out.length > SETTINGS.maxManifestChannels) throw new Error(`${field} exceeds cap`);
+    }
+    return out.sort();
+  }
+
+  function normalizeManifest(manifest) {
+    const m = (manifest && typeof manifest === "object") ? manifest : {};
+    const emitsRaw = Array.isArray(m.emits) ? m.emits : [];
+    const consumesRaw = Array.isArray(m.consumes) ? m.consumes : [];
+    if (emitsRaw.length > SETTINGS.maxManifestChannels) throw new Error("emits exceeds cap");
+    if (consumesRaw.length > SETTINGS.maxManifestChannels) throw new Error("consumes exceeds cap");
+
+    let approxBytes = 32;
+    for (const item of [...emitsRaw, ...consumesRaw]) {
+      if (typeof item !== "string") throw new Error("channel entries must be strings");
+      approxBytes += item.length;
+      if (approxBytes > SETTINGS.maxManifestBytes) throw new Error("manifest too large");
+    }
+    return {
+      emits: normalizeChannelList(emitsRaw, "emits"),
+      consumes: normalizeChannelList(consumesRaw, "consumes")
+    };
+  }
+
+  // ── Protocol handlers ──
+  function handleDeclare(block, msg) {
+    if (block.state !== "LOADING") { violation(block, "unexpected DECLARE"); return; }
+    try {
+      block.manifest = normalizeManifest(msg.manifest);
+      // App metadata from DECLARE — title, icon, description, visibility
+      if (msg.app && typeof msg.app === "object") {
+        block.appMeta = {
+          title: String(msg.app.title || block.id).slice(0, 64),
+          icon: String(msg.app.icon || "▪").slice(0, 4),
+          description: String(msg.app.description || "").slice(0, 128),
+          visible: msg.app.visible !== false
+        };
+      }
+      block.state = "DECLARED";
+      block.mountNonce = crypto.randomUUID();
+      noteAccepted(block, "DECLARE");
+      pushFeed("INFO", `${block.id} declared [${block.manifest.emits.join(",")}] / [${block.manifest.consumes.join(",")}]`);
+      block.port.postMessage({ type: "MOUNT_CHALLENGE", nonce: block.mountNonce });
+      // If visible and no window yet, create window now
+      if (block.appMeta.visible && !block.windowEl) {
+        Shell.createWindow(block);
+      }
+      Shell.scheduleRender();
+    } catch (err) {
+      pushFeed("BAD", `${block.id} bad DECLARE: ${err.message}`);
+      evictBlock(block.id, "bad DECLARE");
+    }
+  }
+
+  function handleSub(block, msg) {
+    if (block.state !== "DECLARED" && block.state !== "MOUNTED") { violation(block, "SUB wrong state"); return; }
+    if (typeof msg.channel !== "string") { violation(block, "SUB missing channel"); return; }
+    if (!block.manifest.consumes.includes(msg.channel)) { violation(block, `undeclared consume ${msg.channel}`); return; }
+    if (block.desiredSubscriptions.has(msg.channel)) { noteAccepted(block, "SUB_NOOP"); return; }
+    if (block.desiredSubscriptions.size >= SETTINGS.maxSubscriptionsPerBlock) { violation(block, "sub cap"); return; }
+    block.desiredSubscriptions.add(msg.channel);
+    if (block.state === "MOUNTED") activateSubscriptions(block);
+    persistBlockState(block);
+    noteAccepted(block, "SUB");
+    pushFeed("INFO", `${block.id} sub ${msg.channel}`);
+    Shell.scheduleRender();
+  }
+
+  function handleMountAck(block, msg) {
+    if (block.state !== "DECLARED") { violation(block, "unexpected MOUNT_ACK"); return; }
+    if (!msg || msg.nonce !== block.mountNonce) { violation(block, "invalid MOUNT_ACK nonce"); return; }
+    block.state = "MOUNTED";
+    block.mountNonce = null;
+    block.lastPongAt = Date.now();
+    block.outstandingPings.clear();
+    activateSubscriptions(block);
+    noteAccepted(block, "MOUNT_ACK");
+    pushFeed("OK", `${block.id} mounted`);
+    scheduleRetryReset(block);
+    Shell.scheduleRender();
+  }
+
+  function handlePong(block, msg) {
+    if (block.state !== "MOUNTED") { violation(block, "PONG outside MOUNTED"); return; }
+    if (!msg || typeof msg.nonce !== "string") { violation(block, "PONG missing nonce"); return; }
+    if (!block.outstandingPings.has(msg.nonce)) { violation(block, "stale PONG"); return; }
+    block.outstandingPings.delete(msg.nonce);
+    block.lastPongAt = Date.now();
+    block.metrics.pongs++;
+    noteAccepted(block, "PONG");
+  }
+
+  function handleEmit(block, msg) {
+    if (block.state !== "MOUNTED") { violation(block, "EMIT before mounted"); return; }
+    if (!consumeBucket(block.dataBucket, SETTINGS.dataLimiterCapacity, SETTINGS.dataLimiterRefillPerSec)) {
+      rateStrike(block, "data plane"); return;
+    }
+    if (typeof msg.channel !== "string") { violation(block, "EMIT missing channel"); return; }
+    if (!block.manifest.emits.includes(msg.channel)) { violation(block, `undeclared emit ${msg.channel}`); return; }
+    let safe;
+    try { safe = sanitizePayload(msg.payload); } catch (err) { violation(block, `payload rejected: ${err.message}`); return; }
+    noteAccepted(block, "EMIT");
+    block.metrics.emitted++;
+
+    // Kernel-handled fs.* syscalls — don't route to message bus
+    if (isFsSyscall(msg.channel)) {
+      handleFsSyscall(block, msg.channel, safe);
+      return;
+    }
+
+    deliverMessage(block.id, msg.channel, safe);
+  }
+
+  // ── Message router ──
+  function router(port, msg) {
+    const id = PORT_ID.get(port);
+    const block = id ? BLOCKS.get(id) : null;
+    if (!block) return;
+    if (!msg || typeof msg.type !== "string") { violation(block, "malformed message"); return; }
+    if (CONTROL_TYPES.has(msg.type)) {
+      if (!consumeBucket(block.controlBucket, SETTINGS.controlLimiterCapacity, SETTINGS.controlLimiterRefillPerSec)) {
+        violation(block, `control rate exceeded: ${msg.type}`); return;
+      }
+    }
+    switch (msg.type) {
+      case "DECLARE": handleDeclare(block, msg); break;
+      case "SUB": handleSub(block, msg); break;
+      case "MOUNT_ACK": handleMountAck(block, msg); break;
+      case "PONG": handlePong(block, msg); break;
+      case "EMIT": handleEmit(block, msg); break;
+      default: violation(block, `unknown type: ${msg.type}`);
+    }
+  }
+
+  // ── Block state constructor ──
+  function makeBlockState(id, url, iframe, port, opts = {}) {
+    const prior = PERSISTED.get(id);
+    const desired = new Set(opts.carriedSubscriptions || (prior ? prior.desiredSubscriptions : []));
+    return {
+      id, url, iframe, port,
+      state: "LOADING",
+      manifest: { emits: [], consumes: [] },
+      appMeta: opts.appMeta || { title: id, icon: "▪", description: "", visible: true },
+      desiredSubscriptions: desired,
+      activeSubscriptions: new Set(),
+      retryCount: typeof opts.retryCount === "number" ? opts.retryCount : (prior ? prior.retryCount : 0),
+      watchdogTimer: null,
+      retryResetTimer: null,
+      mountNonce: null,
+      lastPongAt: Date.now(),
+      outstandingPings: new Map(),
+      dataBucket: makeBucket(SETTINGS.dataLimiterCapacity),
+      controlBucket: makeBucket(SETTINGS.controlLimiterCapacity),
+      windowEl: null,
+      metrics: { accepted: 0, emitted: 0, delivered: 0, pongs: 0, violations: 0, rateStrikes: 0, lastAcceptedKind: "" }
+    };
+  }
+
+  // ── URL validation ──
+  function isAllowedBlockUrl(url) {
+    try {
+      const resolved = new URL(url, location.href);
+      return resolved.origin === location.origin && resolved.pathname.endsWith('.html');
+    } catch (_) { return false; }
+  }
+
+  // ── Spawn ──
+  function spawnBlock(id, url, opts = {}) {
+    if (BLOCKS.size >= SETTINGS.maxBlocks) { pushFeed("BAD", "block cap reached"); return null; }
+    if (BLOCKS.has(id)) { pushFeed("WARN", `${id} already exists`); return BLOCKS.get(id); }
+    if (!isAllowedBlockUrl(url)) { pushFeed("BAD", `blocked URL: ${url}`); return null; }
+
+    const iframe = document.createElement("iframe");
+    iframe.sandbox = "allow-scripts";
+    iframe.referrerPolicy = "no-referrer";
+
+    const channel = new MessageChannel();
+    const block = makeBlockState(id, url, iframe, channel.port1, opts);
+    BLOCKS.set(id, block);
+    PORT_ID.set(channel.port1, id);
+    channel.port1.onmessage = (event) => router(channel.port1, event.data);
+
+    iframe.onload = () => {
+      try {
+        iframe.contentWindow.postMessage({ type: "BOOT", blockId: id }, "*", [channel.port2]);
+      } catch (_) {
+        reloadBlock(id, "boot postMessage failed");
+      }
+    };
+    iframe.src = url;
+
+    // Initially hidden — window creation happens on DECLARE if visible
+    iframe.style.cssText = "width:0;height:0;border:0;position:absolute;left:-9999px;top:-9999px;";
+    document.body.appendChild(iframe);
+
+    persistBlockState(block);
+    armWatchdog(block);
+    pushFeed("INFO", `spawn ${id} → ${url}`);
+    Shell.scheduleRender();
+    return block;
+  }
+
+  function makeId(prefix) {
+    return `${prefix}-${crypto.randomUUID().slice(0, 6)}`;
+  }
+
+  // Start reaper
+  setInterval(reapBlocks, SETTINGS.reaperIntervalMs);
+
+
+  /* ═══════════════════════════════════════════════════════════
+     SECTION 1B — FILESYSTEM SERVICE (kernel-level VFS)
+     The kernel mediates all file access. Blocks emit on fs.*
+     channels; the kernel handles them as syscalls and responds
+     directly on the block's private port.
+     ═══════════════════════════════════════════════════════════ */
+
+  let dirHandle = null; // FileSystemDirectoryHandle from user grant
+
+  // Kernel-handled fs channels — these are syscalls, not routed messages
+  const FS_CHANNELS = new Set(["fs.list", "fs.read", "fs.read-blob", "fs.write", "fs.delete", "fs.status", "fs.mkdir"]);
+
+  async function mountFolder() {
+    try {
+      dirHandle = await window.showDirectoryPicker({ mode: "readwrite" });
+      pushFeed("OK", `folder mounted: ${dirHandle.name}`);
+      // Notify all mounted blocks that fs is available
+      for (const block of BLOCKS.values()) {
+        if (block.state === "MOUNTED") {
+          try { block.port.postMessage({ type: "MSG", src: "_kernel", channel: "fs.mounted", payload: { name: dirHandle.name } }); } catch (_) {}
+        }
+      }
+      Shell.scheduleRender();
+      return true;
+    } catch (err) {
+      if (err.name !== "AbortError") pushFeed("WARN", `folder mount failed: ${err.message}`);
+      return false;
+    }
+  }
+
+  // Resolve a path like "subdir/file.txt" to a file handle
+  async function resolvePath(pathStr) {
+    if (!dirHandle) throw new Error("no folder mounted");
+    const parts = pathStr.split("/").filter(p => p && p !== "." && p !== "..");
+    if (parts.length === 0) throw new Error("empty path");
+
+    let current = dirHandle;
+    for (let i = 0; i < parts.length - 1; i++) {
+      current = await current.getDirectoryHandle(parts[i]);
+    }
+    return { parentDir: current, name: parts[parts.length - 1] };
+  }
+
+  // Handle fs.* syscalls from blocks
+  async function handleFsSyscall(block, channel, payload) {
+    const respond = (data) => {
+      try { block.port.postMessage({ type: "MSG", src: "_kernel", channel: "fs.result", payload: { requestChannel: channel, ...data } }); } catch (_) {}
+    };
+
+    try {
+      switch (channel) {
+        case "fs.status": {
+          respond({ ok: true, mounted: !!dirHandle, folderName: dirHandle ? dirHandle.name : null });
+          break;
+        }
+
+        case "fs.list": {
+          if (!dirHandle) { respond({ ok: false, error: "no folder mounted" }); return; }
+          const subPath = (payload && payload.path) || "";
+          let targetDir = dirHandle;
+
+          if (subPath) {
+            const parts = subPath.split("/").filter(p => p && p !== "." && p !== "..");
+            for (const part of parts) {
+              targetDir = await targetDir.getDirectoryHandle(part);
+            }
+          }
+
+          const entries = [];
+          for await (const [name, handle] of targetDir.entries()) {
+            const entry = { name, kind: handle.kind };
+            if (handle.kind === "file") {
+              try {
+                const file = await handle.getFile();
+                entry.size = file.size;
+                entry.type = file.type;
+                entry.lastModified = file.lastModified;
+              } catch (_) {}
+            }
+            entries.push(entry);
+          }
+          entries.sort((a, b) => {
+            if (a.kind !== b.kind) return a.kind === "directory" ? -1 : 1;
+            return a.name.localeCompare(b.name);
+          });
+          respond({ ok: true, path: subPath, entries });
+          break;
+        }
+
+        case "fs.read": {
+          if (!dirHandle) { respond({ ok: false, error: "no folder mounted" }); return; }
+          const { parentDir, name } = await resolvePath(payload.path);
+          const fileHandle = await parentDir.getFileHandle(name);
+          const file = await fileHandle.getFile();
+          const text = await file.text();
+          respond({ ok: true, path: payload.path, content: text, size: file.size, type: file.type });
+          break;
+        }
+
+        case "fs.read-blob": {
+          if (!dirHandle) { respond({ ok: false, error: "no folder mounted" }); return; }
+          const { parentDir, name } = await resolvePath(payload.path);
+          const fileHandle = await parentDir.getFileHandle(name);
+          const file = await fileHandle.getFile();
+          // Convert to base64 for transfer over postMessage
+          const buffer = await file.arrayBuffer();
+          const bytes = new Uint8Array(buffer);
+          let binary = "";
+          // Chunk to avoid call stack limits
+          const chunkSize = 8192;
+          for (let i = 0; i < bytes.length; i += chunkSize) {
+            binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+          }
+          const base64 = btoa(binary);
+          respond({ ok: true, path: payload.path, base64, mimeType: file.type || "application/octet-stream", size: file.size });
+          break;
+        }
+
+        case "fs.write": {
+          if (!dirHandle) { respond({ ok: false, error: "no folder mounted" }); return; }
+          const path = payload.path;
+          const parts = path.split("/").filter(p => p && p !== "." && p !== "..");
+          let current = dirHandle;
+          // Create intermediate directories
+          for (let i = 0; i < parts.length - 1; i++) {
+            current = await current.getDirectoryHandle(parts[i], { create: true });
+          }
+          const fileHandle = await current.getFileHandle(parts[parts.length - 1], { create: true });
+          const writable = await fileHandle.createWritable();
+          await writable.write(payload.content);
+          await writable.close();
+          pushFeed("INFO", `fs.write: ${path} (${payload.content.length} bytes)`);
+          respond({ ok: true, path });
+          break;
+        }
+
+        case "fs.delete": {
+          if (!dirHandle) { respond({ ok: false, error: "no folder mounted" }); return; }
+          const { parentDir, name } = await resolvePath(payload.path);
+          await parentDir.removeEntry(name, { recursive: !!payload.recursive });
+          pushFeed("INFO", `fs.delete: ${payload.path}`);
+          respond({ ok: true, path: payload.path });
+          break;
+        }
+
+        case "fs.mkdir": {
+          if (!dirHandle) { respond({ ok: false, error: "no folder mounted" }); return; }
+          const parts = payload.path.split("/").filter(p => p && p !== "." && p !== "..");
+          let current = dirHandle;
+          for (const part of parts) {
+            current = await current.getDirectoryHandle(part, { create: true });
+          }
+          respond({ ok: true, path: payload.path });
+          break;
+        }
+
+        default:
+          respond({ ok: false, error: "unknown fs channel" });
+      }
+    } catch (err) {
+      respond({ ok: false, error: err.message, requestChannel: channel });
+    }
+  }
+
+  // Check if a channel is a kernel-handled fs syscall
+  function isFsSyscall(channel) {
+    return FS_CHANNELS.has(channel);
+  }
+
+
+  // Expose kernel API for shell
+  Kernel = {
+    BLOCKS, COUNTERS, FEED, SETTINGS,
+    spawnBlock, evictBlock, makeId, pushFeed, mountFolder,
+    get blockCount() { return BLOCKS.size; },
+    get hasFolderMounted() { return !!dirHandle; },
+    get folderName() { return dirHandle ? dirHandle.name : null; }
+  };
+
+
+  /* ═══════════════════════════════════════════════════════════
+     SECTION 2 — WINDOW MANAGER
+     Creates, positions, drags, resizes, minimizes, maximizes
+     windows. Manages z-order and focus.
+     ═══════════════════════════════════════════════════════════ */
+
+  const desktop = document.getElementById("nx-desktop");
+  let topZ = 10;
+  let activeWindowId = null;
+
+  // Cascade offset for new windows
+  let cascadeX = 60;
+  let cascadeY = 40;
+
+  function createWindow(block) {
+    const win = document.createElement("div");
+    win.className = "nx-window active";
+    win.dataset.blockId = block.id;
+    win.style.zIndex = ++topZ;
+    win.style.left = cascadeX + "px";
+    win.style.top = cascadeY + "px";
+    win.style.width = "680px";
+    win.style.height = "480px";
+
+    cascadeX += 30;
+    cascadeY += 30;
+    const desktopRect = desktop.getBoundingClientRect();
+    if (cascadeX + 680 > desktopRect.width) cascadeX = 60;
+    if (cascadeY + 480 > desktopRect.height - 60) cascadeY = 40;
+
+    // Title bar
+    const titlebar = document.createElement("div");
+    titlebar.className = "nx-titlebar";
+
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "nx-titlebar-dot close";
+    closeBtn.title = "Close";
+    closeBtn.onclick = (e) => { e.stopPropagation(); Kernel.evictBlock(block.id, "user closed"); };
+
+    const minBtn = document.createElement("button");
+    minBtn.className = "nx-titlebar-dot minimize";
+    minBtn.title = "Minimize";
+    minBtn.onclick = (e) => { e.stopPropagation(); minimizeWindow(block.id); };
+
+    const maxBtn = document.createElement("button");
+    maxBtn.className = "nx-titlebar-dot maximize";
+    maxBtn.title = "Maximize";
+    maxBtn.onclick = (e) => { e.stopPropagation(); toggleMaximize(block.id); };
+
+    const title = document.createElement("div");
+    title.className = "nx-titlebar-title";
+    title.textContent = block.appMeta.title;
+
+    const stateDot = document.createElement("div");
+    stateDot.style.cssText = `width:7px;height:7px;border-radius:50%;background:var(--warn);flex-shrink:0;`;
+    stateDot.className = "nx-state-dot";
+
+    titlebar.appendChild(closeBtn);
+    titlebar.appendChild(minBtn);
+    titlebar.appendChild(maxBtn);
+    titlebar.appendChild(title);
+    titlebar.appendChild(stateDot);
+
+    // Content area
+    const content = document.createElement("div");
+    content.className = "nx-window-content";
+
+    // Move the iframe into the window
+    block.iframe.style.cssText = "width:100%;height:100%;border:0;";
+    content.appendChild(block.iframe);
+
+    // Resize handle
+    const resizeHandle = document.createElement("div");
+    resizeHandle.className = "nx-resize-handle";
+
+    win.appendChild(titlebar);
+    win.appendChild(content);
+    win.appendChild(resizeHandle);
+
+    // Focus on click
+    win.addEventListener("mousedown", () => focusWindow(block.id));
+
+    // Drag
+    setupDrag(titlebar, win, block.id);
+
+    // Resize
+    setupResize(resizeHandle, win);
+
+    desktop.appendChild(win);
+    block.windowEl = win;
+
+    // Deactivate previous
+    if (activeWindowId && activeWindowId !== block.id) {
+      const prev = BLOCKS.get(activeWindowId);
+      if (prev && prev.windowEl) prev.windowEl.classList.remove("active");
+    }
+    activeWindowId = block.id;
+
+    Shell.scheduleRender();
+  }
+
+  function focusWindow(blockId) {
+    const block = BLOCKS.get(blockId);
+    if (!block || !block.windowEl) return;
+
+    // Un-minimize if needed
+    block.windowEl.classList.remove("minimized");
+
+    // Deactivate all
+    for (const b of BLOCKS.values()) {
+      if (b.windowEl) b.windowEl.classList.remove("active");
+    }
+    block.windowEl.classList.add("active");
+    block.windowEl.style.zIndex = ++topZ;
+    activeWindowId = blockId;
+    Shell.scheduleRender();
+  }
+
+  function minimizeWindow(blockId) {
+    const block = BLOCKS.get(blockId);
+    if (!block || !block.windowEl) return;
+    block.windowEl.classList.add("minimized");
+    // Focus next visible window
+    let found = false;
+    for (const b of BLOCKS.values()) {
+      if (b.id !== blockId && b.windowEl && !b.windowEl.classList.contains("minimized")) {
+        focusWindow(b.id);
+        found = true;
+        break;
+      }
+    }
+    if (!found) activeWindowId = null;
+    Shell.scheduleRender();
+  }
+
+  function toggleMaximize(blockId) {
+    const block = BLOCKS.get(blockId);
+    if (!block || !block.windowEl) return;
+    block.windowEl.classList.toggle("maximized");
+    focusWindow(blockId);
+  }
+
+  function setupDrag(handle, win, blockId) {
+    let dragging = false, startX, startY, origLeft, origTop;
+
+    handle.addEventListener("mousedown", (e) => {
+      if (e.target.classList.contains("nx-titlebar-dot")) return;
+      if (win.classList.contains("maximized")) return;
+      dragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      origLeft = win.offsetLeft;
+      origTop = win.offsetTop;
+      e.preventDefault();
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      if (!dragging) return;
+      win.style.left = (origLeft + e.clientX - startX) + "px";
+      win.style.top = (origTop + e.clientY - startY) + "px";
+    });
+
+    document.addEventListener("mouseup", () => { dragging = false; });
+  }
+
+  function setupResize(handle, win) {
+    let resizing = false, startX, startY, origW, origH;
+
+    handle.addEventListener("mousedown", (e) => {
+      if (win.classList.contains("maximized")) return;
+      resizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      origW = win.offsetWidth;
+      origH = win.offsetHeight;
+      e.preventDefault();
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      if (!resizing) return;
+      const w = Math.max(320, origW + e.clientX - startX);
+      const h = Math.max(200, origH + e.clientY - startY);
+      win.style.width = w + "px";
+      win.style.height = h + "px";
+    });
+
+    document.addEventListener("mouseup", () => { resizing = false; });
+  }
+
+  function tileAllWindows() {
+    const visible = [];
+    for (const b of BLOCKS.values()) {
+      if (b.windowEl && !b.windowEl.classList.contains("minimized")) visible.push(b);
+    }
+    if (visible.length === 0) return;
+    const rect = desktop.getBoundingClientRect();
+    const cols = Math.ceil(Math.sqrt(visible.length));
+    const rows = Math.ceil(visible.length / cols);
+    const w = Math.floor(rect.width / cols);
+    const h = Math.floor(rect.height / rows);
+
+    visible.forEach((b, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      b.windowEl.classList.remove("maximized");
+      b.windowEl.style.left = (col * w) + "px";
+      b.windowEl.style.top = (row * h) + "px";
+      b.windowEl.style.width = w + "px";
+      b.windowEl.style.height = h + "px";
+    });
+  }
+
+
+  /* ═══════════════════════════════════════════════════════════
+     SECTION 3 — SHELL (Taskbar, Launcher, Desktop, Rendering)
+     ═══════════════════════════════════════════════════════════ */
+
+  // App registry — apps available in the launcher
+  const APP_CATALOG = [
+    { id: "terminal", path: "blocks/app-terminal.html", icon: "⌬", title: "Terminal", desc: "System monitor & kernel feed" },
+    { id: "files", path: "blocks/app-files.html", icon: "📂", title: "Files", desc: "Browse and manage local files" },
+    { id: "notepad", path: "blocks/app-notepad.html", icon: "◉", title: "Notepad", desc: "Text editor with file save/open" },
+    { id: "reader", path: "blocks/app-reader.html", icon: "📖", title: "Reader", desc: "Markdown document viewer" },
+    { id: "music", path: "blocks/app-music.html", icon: "♫", title: "Music", desc: "Audio player" },
+    { id: "video", path: "blocks/app-video.html", icon: "🎬", title: "Video", desc: "Video player" },
+    { id: "viewer", path: "blocks/app-viewer.html", icon: "◧", title: "Images", desc: "Image gallery & viewer" },
+    { id: "about", path: "blocks/app-about.html", icon: "⬡", title: "About", desc: "System information" },
+  ];
+
+  let launcherOpen = false;
+  let renderQueued = false;
+  const launcherBtn = document.getElementById("nx-launcher-btn");
+  const launcherEl = document.getElementById("nx-launcher");
+  const launcherList = document.getElementById("nx-launcher-list");
+  const launcherSearch = document.getElementById("nx-launcher-search");
+  const taskbarApps = document.getElementById("nx-taskbar-apps");
+  const statBlocks = document.getElementById("nx-stat-blocks");
+  const statViolations = document.getElementById("nx-stat-violations");
+  const statFolder = document.getElementById("nx-stat-folder");
+  const clockEl = document.getElementById("nx-taskbar-clock");
+  const uptimeEl = document.getElementById("nx-launcher-uptime");
+
+  function scheduleRender() {
+    if (renderQueued) return;
+    renderQueued = true;
+    requestAnimationFrame(() => {
+      renderQueued = false;
+      renderTaskbar();
+      renderStats();
+      renderWindowStates();
+    });
+  }
+
+  function renderTaskbar() {
+    taskbarApps.textContent = "";
+    const sorted = Array.from(BLOCKS.values()).filter(b => b.appMeta.visible).sort((a, b) => a.id.localeCompare(b.id));
+    for (const block of sorted) {
+      const item = document.createElement("div");
+      const isMinimized = block.windowEl && block.windowEl.classList.contains("minimized");
+      const isActive = block.id === activeWindowId && !isMinimized;
+      item.className = "nx-taskbar-item" + (isActive ? " active" : "") + (isMinimized ? " minimized" : "");
+      item.innerHTML = `<span class="item-dot"></span>${block.appMeta.icon} ${block.appMeta.title}`;
+      item.onclick = () => {
+        if (isActive) {
+          minimizeWindow(block.id);
+        } else {
+          focusWindow(block.id);
+        }
+      };
+      taskbarApps.appendChild(item);
+    }
+  }
+
+  function renderStats() {
+    statBlocks.textContent = BLOCKS.size + " blocks";
+    statViolations.textContent = COUNTERS.totalViolations + " violations";
+    if (Kernel.hasFolderMounted) {
+      statFolder.textContent = "📂 " + Kernel.folderName;
+      statFolder.style.borderColor = "var(--accent)";
+      statFolder.style.color = "var(--accent)";
+    } else {
+      statFolder.textContent = "📁 mount folder";
+      statFolder.style.borderColor = "";
+      statFolder.style.color = "";
+    }
+  }
+
+  function renderWindowStates() {
+    for (const block of BLOCKS.values()) {
+      if (!block.windowEl) continue;
+      const dot = block.windowEl.querySelector(".nx-state-dot");
+      if (dot) {
+        dot.style.background = block.state === "MOUNTED" ? "var(--accent)" : block.state === "EVICTED" ? "var(--danger)" : "var(--warn)";
+      }
+      const title = block.windowEl.querySelector(".nx-titlebar-title");
+      if (title) title.textContent = block.appMeta.title + (block.state === "MOUNTED" ? "" : ` [${block.state}]`);
+    }
+  }
+
+  function renderLauncher(filter = "") {
+    launcherList.textContent = "";
+    const q = filter.toLowerCase();
+    const filtered = APP_CATALOG.filter(app => !q || app.title.toLowerCase().includes(q) || app.desc.toLowerCase().includes(q));
+
+    for (const app of filtered) {
+      const item = document.createElement("div");
+      item.className = "nx-launcher-item";
+      item.innerHTML = `
+        <div class="app-icon">${app.icon}</div>
+        <div class="app-info">
+          <div class="app-name">${app.title}</div>
+          <div class="app-desc">${app.desc}</div>
+        </div>`;
+      item.onclick = () => {
+        launchApp(app);
+        closeLauncher();
+      };
+      launcherList.appendChild(item);
+    }
+
+    // Custom file option
+    const customItem = document.createElement("div");
+    customItem.className = "nx-launcher-item";
+    customItem.innerHTML = `
+      <div class="app-icon" style="color:var(--accent)">+</div>
+      <div class="app-info">
+        <div class="app-name">Load Custom Block...</div>
+        <div class="app-desc">Enter path to an HTML app</div>
+      </div>`;
+    customItem.onclick = () => {
+      const path = prompt("Enter HTML file path (relative to this file):");
+      if (path) {
+        const stem = path.split("/").pop().replace(".html", "").replace(/[^a-z0-9]/gi, "-").toUpperCase();
+        Kernel.spawnBlock(Kernel.makeId(stem), path, { appMeta: { title: stem, icon: "◆", description: "Custom block", visible: true } });
+      }
+      closeLauncher();
+    };
+    launcherList.appendChild(customItem);
+  }
+
+  function launchApp(app) {
+    Kernel.spawnBlock(
+      Kernel.makeId(app.id.toUpperCase()),
+      app.path,
+      { appMeta: { title: app.title, icon: app.icon, description: app.desc, visible: true } }
+    );
+  }
+
+  function toggleLauncher() {
+    launcherOpen = !launcherOpen;
+    launcherEl.classList.toggle("open", launcherOpen);
+    if (launcherOpen) {
+      renderLauncher();
+      launcherSearch.value = "";
+      setTimeout(() => launcherSearch.focus(), 50);
+    }
+  }
+
+  function closeLauncher() {
+    launcherOpen = false;
+    launcherEl.classList.remove("open");
+  }
+
+  // Clock
+  function updateClock() {
+    const now = new Date();
+    clockEl.textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const uptimeSec = Math.floor((Date.now() - COUNTERS.bootTime) / 1000);
+    const m = Math.floor(uptimeSec / 60);
+    const h = Math.floor(m / 60);
+    uptimeEl.textContent = `uptime ${h}h ${m % 60}m`;
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  // Desktop icons
+  function renderDesktopIcons() {
+    let x = 20, y = 20;
+    for (const app of APP_CATALOG) {
+      const icon = document.createElement("div");
+      icon.className = "nx-desktop-icon";
+      icon.style.left = x + "px";
+      icon.style.top = y + "px";
+      icon.innerHTML = `<div class="icon-glyph">${app.icon}</div><div class="icon-label">${app.title}</div>`;
+      icon.ondblclick = () => launchApp(app);
+      desktop.appendChild(icon);
+      y += 100;
+      if (y > desktop.clientHeight - 120) { y = 20; x += 90; }
+    }
+  }
+
+  // Context menu on desktop
+  desktop.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    // Remove any existing
+    document.querySelectorAll(".nx-context-menu").forEach(m => m.remove());
+
+    const menu = document.createElement("div");
+    menu.className = "nx-context-menu";
+    menu.style.left = e.clientX + "px";
+    menu.style.top = e.clientY + "px";
+
+    const items = [
+      { label: "⬡ Open Launcher", action: () => toggleLauncher() },
+      { label: "◫ Tile All Windows", action: () => tileAllWindows() },
+      { label: "─ Minimize All", action: () => { for (const b of BLOCKS.values()) if (b.windowEl) minimizeWindow(b.id); } },
+      "sep",
+      { label: "⟲ Evict All Blocks", action: () => { for (const id of Array.from(BLOCKS.keys())) Kernel.evictBlock(id, "user requested"); } },
+    ];
+
+    for (const item of items) {
+      if (item === "sep") {
+        const sep = document.createElement("div");
+        sep.className = "nx-context-sep";
+        menu.appendChild(sep);
+      } else {
+        const el = document.createElement("div");
+        el.className = "nx-context-item";
+        el.textContent = item.label;
+        el.onclick = () => { item.action(); menu.remove(); };
+        menu.appendChild(el);
+      }
+    }
+
+    document.body.appendChild(menu);
+    const closeMenu = (ev) => { if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener("click", closeMenu); } };
+    setTimeout(() => document.addEventListener("click", closeMenu), 10);
+  });
+
+  // Event wiring
+  launcherBtn.addEventListener("click", toggleLauncher);
+  launcherSearch.addEventListener("input", () => renderLauncher(launcherSearch.value));
+  statFolder.addEventListener("click", () => Kernel.mountFolder());
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeLauncher();
+  });
+
+  // Click desktop to close launcher
+  desktop.addEventListener("click", (e) => {
+    if (e.target === desktop || e.target.closest("#nx-desktop")) closeLauncher();
+  });
+
+  // Expose Shell API to kernel
+  Shell = {
+    createWindow,
+    focusWindow,
+    scheduleRender,
+    APP_CATALOG,
+    renderLauncher
+  };
+
+  // ── Boot ──
+  pushFeed("OK", "Nexus OS kernel booted");
+  pushFeed("INFO", `process isolation: sandboxed iframes, MessageChannel IPC`);
+  pushFeed("INFO", `security: capability-gated messaging, split rate limiters, payload sanitization`);
+  pushFeed("INFO", `shell: window manager, taskbar, launcher ready`);
+  renderDesktopIcons();
+  scheduleRender();
+
+  // Expose globally for debugging (remove in production)
+  window.__NEXUS_KERNEL = Kernel;
+  window.__NEXUS_SHELL = Shell;
+
+})();
+</script>
+</body>
+</html>

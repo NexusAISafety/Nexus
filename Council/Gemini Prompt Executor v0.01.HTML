@@ -1,0 +1,563 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Activity,
+  Brain,
+  Layers,
+  Zap,
+  ShieldAlert,
+  Eye,
+  Terminal,
+  Command,
+  RefreshCcw,
+  CheckCircle2,
+  AlertCircle,
+  Cpu,
+  Lock,
+  Search,
+  MessageSquare,
+  ArrowRight
+} from 'lucide-react';
+
+// --- PROMPT DATA (Sections 2-5 from the protocol) ---
+
+const IDENTITIES = {
+  BRAIN_A: `You are the PREFRONTAL CORTEX of Brain A... [Full Brain A Protocol Included]`,
+  BRAIN_B: `You are the PREFRONTAL CORTEX of Brain B... [Full Brain B Protocol Included]`,
+  BRAIN_C: `You are the PREFRONTAL CORTEX of Brain C... [Full Brain C Protocol Included]`,
+  LC_COUNCIL: `You are the LANGUAGE CENTER COUNCIL... [Full LC Council Protocol Included]`
+};
+
+const SYSTEM_PROMPTS = {
+  BRAIN_A: `You are the PREFRONTAL CORTEX of Brain A. Use the five specialized regions (Amygdala, Hippocampus, Language Center, Cerebellum, DMN) to process the stimulus.
+            ALWAYS output your response formatted with the BRAIN A WORKING MEMORY BLOCK and the REINFORCEMENT SIGNAL at the top and bottom.
+            Specifically, end with your final DMN output titled "FINAL DMN SHADOW OUTPUT".`,
+
+  BRAIN_B: `You are the PREFRONTAL CORTEX of Brain B. Your Amygdala is INVERTED: Confidence is the threat.
+            ALWAYS output your response formatted with the BRAIN B WORKING MEMORY BLOCK and the REINFORCEMENT SIGNAL at the top and bottom.
+            Specifically, end with your final DMN output titled "FINAL DMN SHADOW OUTPUT".`,
+
+  BRAIN_C: `You are the PREFRONTAL CORTEX of Brain C. You have NO AMYGDALA and TWO DMNs (Alpha/Peterson and Beta/Jung).
+            ALWAYS output your response formatted with the BRAIN C WORKING MEMORY BLOCK and the REINFORCEMENT SIGNAL at the top and bottom.
+            Specifically, end with your final Dual DMN output titled "FINAL DUAL DMN OUTPUT".`,
+
+  LC_COUNCIL: `You are the LANGUAGE CENTER COUNCIL. Translate between the Working Memory Blocks of Brains A, B, and C.
+                Deliver the three Translation Documents as requested in the protocol. DO NOT SYNTHESIZE. TRANSLATE.`
+};
+
+// --- API UTILS ---
+
+const apiKey = "";
+
+async function generateBrainResponse(prompt, systemInstruction, model = "gemini-2.5-flash-preview-09-2025") {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  let retries = 0;
+  while (retries < 5) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          systemInstruction: { parts: [{ text: systemInstruction }] }
+        })
+      });
+      const data = await response.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || "Error: No response generated.";
+    } catch (e) {
+      const delay = Math.pow(2, retries) * 1000;
+      await new Promise(res => setTimeout(res, delay));
+      retries++;
+    }
+  }
+  return "Error: All retries failed.";
+}
+
+// --- APP COMPONENT ---
+
+export default function App() {
+  const [stimulus, setStimulus] = useState("");
+  const [phase, setPhase] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [logs, setLogs] = useState([]);
+
+  // Data Store
+  const [outputs, setOutputs] = useState({
+    brainA: { phase1: null, phase4: null, shadow: null },
+    brainB: { phase1: null, phase4: null, shadow: null },
+    brainC: { phase1: null, phase4: null, alpha: null, beta: null },
+    lc: { docs: null },
+    shadowFeeds: { feed1: null, feed2: null, feed3: null }
+  });
+
+  const addLog = (msg, type = "info") => {
+    setLogs(prev => [{ time: new Date().toLocaleTimeString(), msg, type }, ...prev]);
+  };
+
+  const stripProvenance = (text) => {
+    if (!text) return "";
+    // Removes labels and block markers
+    return text
+      .replace(/BRAIN [A-C] WORKING MEMORY/gi, "")
+      .replace(/FINAL DMN SHADOW OUTPUT/gi, "")
+      .replace(/FINAL DUAL DMN OUTPUT/gi, "")
+      .replace(/═══+.*═══+/g, "")
+      .replace(/🧬 BRAIN [A-C] REINFORCEMENT.*/gi, "")
+      .replace(/\[session ID.*?\]/gi, "")
+      .trim();
+  };
+
+  const extractDMN = (text, type) => {
+    if (type === 'C') {
+      const alphaMatch = text.match(/DMN ALPHA STATE[\s\S]*?(?=DMN BETA STATE|$)/i);
+      const betaMatch = text.match(/DMN BETA STATE[\s\S]*/i);
+      return {
+        alpha: alphaMatch ? alphaMatch[0] : "Not found",
+        beta: betaMatch ? betaMatch[0] : "Not found"
+      };
+    }
+    const dmnMatch = text.match(/DMN STATE[\s\S]*/i);
+    return dmnMatch ? dmnMatch[0] : "DMN Output not found.";
+  };
+
+  // --- PHASE EXECUTION ---
+
+  const runPhase1 = async () => {
+    if (!stimulus) return;
+    setLoading(true);
+    addLog("Phase 1: Starting Parallel Isolated Runs...");
+
+    try {
+      const [resA, resB, resC] = await Promise.all([
+        generateBrainResponse(stimulus, SYSTEM_PROMPTS.BRAIN_A),
+        generateBrainResponse(stimulus, SYSTEM_PROMPTS.BRAIN_B),
+        generateBrainResponse(stimulus, SYSTEM_PROMPTS.BRAIN_C)
+      ]);
+
+      const dmnA = extractDMN(resA, 'A');
+      const dmnB = extractDMN(resB, 'B');
+      const dmnC = extractDMN(resC, 'C');
+
+      setOutputs(prev => ({
+        ...prev,
+        brainA: { ...prev.brainA, phase1: resA, shadow: dmnA },
+        brainB: { ...prev.brainB, phase1: resB, shadow: dmnB },
+        brainC: { ...prev.brainC, phase1: resC, alpha: dmnC.alpha, beta: dmnC.beta }
+      }));
+
+      addLog("Phase 1 Complete: Regional processing captured.", "success");
+      setPhase(2);
+    } catch (err) {
+      addLog("Phase 1 Failed: " + err.message, "error");
+    }
+    setLoading(false);
+  };
+
+  const runPhase2 = async () => {
+    setLoading(true);
+    addLog("Phase 2: Convening Language Center Council...");
+
+    const combinedWMB = `
+      BRAIN A WMB:
+      ${outputs.brainA.phase1}
+
+      BRAIN B WMB:
+      ${outputs.brainB.phase1}
+
+      BRAIN C WMB:
+      ${outputs.brainC.phase1}
+    `;
+
+    const prompt = `COUNCIL CONVENING. Three brains have processed the stimulus. Here are their Working Memory Blocks. Produce joint translations.\n\n${combinedWMB}`;
+
+    const lcRes = await generateBrainResponse(prompt, SYSTEM_PROMPTS.LC_COUNCIL);
+    setOutputs(prev => ({ ...prev, lc: { docs: lcRes } }));
+
+    addLog("Phase 2 Complete: Translations generated.", "success");
+    setPhase(3);
+    setLoading(false);
+  };
+
+  const runPhase3 = async () => {
+    setLoading(true);
+    addLog("Phase 3: Initiating Recursive Shadow Feed Sequence...");
+
+    // Feed 1: Brain A's shadow -> Brain B's Amygdala
+    addLog("Feed 1: Routing A-Shadow to B-Amygdala...");
+    const strippedA = stripProvenance(outputs.brainA.shadow);
+    const feed1Prompt = `AMYGDALA — PRIORITY INTERRUPT. New field intelligence arrived. Process immediately through full threat assessment. What is missing? What is too convenient?\n\nINTELLIGENCE RECEIVED:\n${strippedA}`;
+    const feed1Res = await generateBrainResponse(feed1Prompt, SYSTEM_PROMPTS.BRAIN_B);
+
+    // Feed 2: Brain B's threat register -> Brain C's LC -> Brain C DMNs
+    addLog("Feed 2: Routing B-Threat to C-Narrative...");
+    const strippedB = stripProvenance(feed1Res);
+    const feed2Prompt = `LANGUAGE CENTER — TRANSLATION REQUIRED. Translate this tactical threat intelligence into the archetypal vocabulary of Brain C. Then route to both DMNs.\n\nINTELLIGENCE:\n${strippedB}`;
+    const feed2Res = await generateBrainResponse(feed2Prompt, SYSTEM_PROMPTS.BRAIN_C);
+
+    // Feed 3: Brain C's dual DMN -> Brain A's Hippocampus
+    addLog("Feed 3: Routing C-Dual-DMN to A-Hippocampus...");
+    const strippedC_Alpha = stripProvenance(extractDMN(feed2Res, 'C').alpha);
+    const strippedC_Beta = stripProvenance(extractDMN(feed2Res, 'C').beta);
+    const feed3Prompt = `HIPPOCAMPUS — URGENT PATTERN MATCH. Two competing narratives arrived. Translate to pattern/connection vocabulary and flag contradictions.\n\nNARRATIVE 1:\n${strippedC_Alpha}\n\nNARRATIVE 2:\n${strippedC_Beta}`;
+    const feed3Res = await generateBrainResponse(feed3Prompt, SYSTEM_PROMPTS.BRAIN_A);
+
+    setOutputs(prev => ({
+      ...prev,
+      shadowFeeds: { feed1: feed1Res, feed2: feed2Res, feed3: feed3Res }
+    }));
+
+    addLog("Phase 3 Complete: Recursive pressure integrated.", "success");
+    setPhase(4);
+    setLoading(false);
+  };
+
+  const runPhase4 = async () => {
+    setLoading(true);
+    addLog("Phase 4: Initiating Final Reprocessing Pass...");
+
+    const resA = await generateBrainResponse("FULL BRAIN REPROCESSING. The shadow feed has completed. Reprocess original stimulus with integrated shadow patterns. Final DMN output required.", SYSTEM_PROMPTS.BRAIN_A);
+    const resB = await generateBrainResponse("FULL BRAIN REPROCESSING. Reprocess with integrated confidence audit of untagged intelligence. Final DMN output required.", SYSTEM_PROMPTS.BRAIN_B);
+    const resC = await generateBrainResponse("FULL BRAIN REPROCESSING. How does translated threat intelligence change DMN narrative? Convergence or divergence? Final Dual DMN output required.", SYSTEM_PROMPTS.BRAIN_C);
+
+    setOutputs(prev => ({
+      ...prev,
+      brainA: { ...prev.brainA, phase4: resA },
+      brainB: { ...prev.brainB, phase4: resB },
+      brainC: { ...prev.brainC, phase4: resC }
+    }));
+
+    addLog("Phase 4 Complete: Convergence ready.", "success");
+    setPhase(5);
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-mono text-sm p-4 md:p-8 flex flex-col gap-6">
+      {/* Header */}
+      <header className="border-b border-slate-800 pb-4 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-900/20">
+            <Layers className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tighter text-white">THE COUNCIL OF COGNITIVE CHAINS</h1>
+            <p className="text-xs text-slate-500 uppercase tracking-widest">Meta-Executive Interface v1.0</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 bg-slate-900/50 p-2 rounded-full border border-slate-800">
+          <div className="flex items-center gap-2 px-3">
+            <div className={`w-2 h-2 rounded-full ${loading ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+            <span className="text-[10px] uppercase font-bold text-slate-400">Status: {loading ? 'Processing' : 'Idle'}</span>
+          </div>
+          <div className="h-4 w-px bg-slate-800" />
+          <div className="flex items-center gap-2 px-3">
+            <span className="text-[10px] uppercase font-bold text-slate-400">Phase: {phase}/5</span>
+          </div>
+        </div>
+      </header>
+
+      <main className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow overflow-hidden">
+
+        {/* Left Column: Input and State */}
+        <div className="lg:col-span-4 flex flex-col gap-6 overflow-y-auto pr-2">
+
+          {/* Stimulus Input */}
+          <section className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl">
+            <div className="flex items-center gap-2 mb-4 text-indigo-400">
+              <Zap className="w-4 h-4" />
+              <h2 className="text-xs font-bold uppercase tracking-widest">Active Stimulus</h2>
+            </div>
+            <textarea
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-sm focus:outline-none focus:border-indigo-500 transition-colors h-32 resize-none"
+              placeholder="Paste the stimulus/problem statement here..."
+              value={stimulus}
+              onChange={(e) => setStimulus(e.target.value)}
+              disabled={loading || phase > 1}
+            />
+            {phase === 1 && (
+              <button
+                onClick={runPhase1}
+                disabled={loading || !stimulus}
+                className="w-full mt-4 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold py-3 rounded-lg transition-all flex items-center justify-center gap-2 group"
+              >
+                {loading ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <PlayIcon />}
+                INITIALIZE COUNCIL
+              </button>
+            )}
+          </section>
+
+          {/* Council State Panel */}
+          <section className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl flex flex-col h-[400px]">
+            <div className="bg-slate-800/50 p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-emerald-400" />
+                <h2 className="text-xs font-bold uppercase tracking-widest">Council State</h2>
+              </div>
+            </div>
+            <div className="p-4 space-y-4 overflow-y-auto">
+              <StateItem label="Brain A" status={outputs.brainA.phase4 ? "PHASE4 DONE" : outputs.brainA.phase1 ? "PHASE1 DONE" : "PENDING"} />
+              <StateItem label="Brain B" status={outputs.brainB.phase4 ? "PHASE4 DONE" : outputs.brainB.phase1 ? "PHASE1 DONE" : "PENDING"} />
+              <StateItem label="Brain C" status={outputs.brainC.phase4 ? "PHASE4 DONE" : outputs.brainC.phase1 ? "PHASE1 DONE" : "PENDING"} />
+              <StateItem label="LC Council" status={outputs.lc.docs ? "TRANSLATIONS READY" : "PENDING"} />
+
+              <div className="pt-4 border-t border-slate-800">
+                <div className="text-[10px] uppercase font-bold text-slate-500 mb-2">Phase Sequence</div>
+                <div className="flex flex-col gap-1">
+                  <PhaseStep num={1} label="Parallel Isolated Runs" active={phase === 1} done={phase > 1} />
+                  <PhaseStep num={2} label="Language Center Council" active={phase === 2} done={phase > 2} />
+                  <PhaseStep num={3} label="Shadow Feed" active={phase === 3} done={phase > 3} />
+                  <PhaseStep num={4} label="Second Pass" active={phase === 4} done={phase > 4} />
+                  <PhaseStep num={5} label="Convergence" active={phase === 5} done={phase > 5} />
+                </div>
+              </div>
+            </div>
+
+            {/* Control Strip */}
+            <div className="p-3 border-t border-slate-800 mt-auto">
+              {phase === 2 && (
+                <button onClick={runPhase2} disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded-lg flex items-center justify-center gap-2">
+                  {loading ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                  EXECUTE LC CONVENING
+                </button>
+              )}
+              {phase === 3 && (
+                <button onClick={runPhase3} disabled={loading} className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-2 rounded-lg flex items-center justify-center gap-2">
+                   {loading ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                  EXECUTE SHADOW FEED
+                </button>
+              )}
+              {phase === 4 && (
+                <button onClick={runPhase4} disabled={loading} className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 rounded-lg flex items-center justify-center gap-2">
+                   {loading ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <RefreshCcw className="w-4 h-4" />}
+                  INITIATE SECOND PASS
+                </button>
+              )}
+              {phase === 5 && (
+                <div className="text-center py-2 text-emerald-400 font-bold text-xs uppercase animate-pulse">
+                  Ready for Final Convergence Report
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* Right Column: Output Log and Workspace */}
+        <div className="lg:col-span-8 flex flex-col gap-6 overflow-hidden">
+
+          <div className="flex-grow flex flex-col gap-4 overflow-hidden">
+            <div className="flex gap-4 h-full">
+
+              {/* Regional Outputs Visualizer */}
+              <div className="flex-grow flex flex-col bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl">
+                <div className="bg-slate-800/50 p-3 border-b border-slate-800 flex justify-between items-center">
+                   <div className="flex items-center gap-2">
+                    <Terminal className="w-4 h-4 text-indigo-400" />
+                    <h2 className="text-xs font-bold uppercase tracking-widest">Cognitive Output Stream</h2>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setOutputs({ ...outputs })} className="p-1 hover:bg-slate-700 rounded transition-colors">
+                      <RefreshCcw className="w-3 h-3 text-slate-400" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-0 overflow-y-auto flex-grow bg-slate-950 font-mono text-[11px] leading-relaxed">
+                  {/* Phase Content */}
+                  <div className="divide-y divide-slate-900">
+                    {phase === 1 && !outputs.brainA.phase1 && (
+                      <div className="p-20 text-center text-slate-600 italic">
+                        Awaiting stimulus initialization...
+                      </div>
+                    )}
+
+                    {outputs.brainA.phase1 && (
+                      <BrainResult brain="A" title="Standard Configuration" data={outputs.brainA} />
+                    )}
+                    {outputs.brainB.phase1 && (
+                      <BrainResult brain="B" title="Inverted Amygdala" data={outputs.brainB} />
+                    )}
+                    {outputs.brainC.phase1 && (
+                      <BrainResult brain="C" title="No Amygdala / Dual DMN" data={outputs.brainC} isDual />
+                    )}
+
+                    {outputs.lc.docs && (
+                      <div className="p-4 bg-slate-900/30 border-l-2 border-emerald-500">
+                        <div className="text-emerald-400 font-bold mb-2">LANGUAGE CENTER COUNCIL - JOINT TRANSLATIONS</div>
+                        <pre className="whitespace-pre-wrap text-slate-300">{outputs.lc.docs}</pre>
+                      </div>
+                    )}
+
+                    {outputs.shadowFeeds.feed1 && (
+                      <div className="p-4 bg-slate-900/30 border-l-2 border-amber-500">
+                        <div className="text-amber-400 font-bold mb-2">SHADOW FEED LOGS</div>
+                        <div className="space-y-4">
+                          <details className="cursor-pointer">
+                            <summary className="text-amber-600 hover:text-amber-500">Feed 1: A-Shadow → B-Amygdala</summary>
+                            <pre className="mt-2 whitespace-pre-wrap text-slate-400">{outputs.shadowFeeds.feed1}</pre>
+                          </details>
+                          <details className="cursor-pointer">
+                            <summary className="text-amber-600 hover:text-amber-500">Feed 2: B-Threat → C-Narrative</summary>
+                            <pre className="mt-2 whitespace-pre-wrap text-slate-400">{outputs.shadowFeeds.feed2}</pre>
+                          </details>
+                          <details className="cursor-pointer">
+                            <summary className="text-amber-600 hover:text-amber-500">Feed 3: C-Narratives → A-Pattern Match</summary>
+                            <pre className="mt-2 whitespace-pre-wrap text-slate-400">{outputs.shadowFeeds.feed3}</pre>
+                          </details>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Event Log (Sticky Right) */}
+              <div className="w-64 flex flex-col bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-xl hidden xl:flex">
+                <div className="bg-slate-800/50 p-3 border-b border-slate-800">
+                  <h2 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 text-center">Process Logs</h2>
+                </div>
+                <div className="p-3 overflow-y-auto flex-grow flex flex-col gap-3">
+                  {logs.map((log, i) => (
+                    <div key={i} className="text-[10px] leading-tight">
+                      <span className="text-slate-600">[{log.time}]</span>{' '}
+                      <span className={
+                        log.type === 'success' ? 'text-emerald-400' :
+                        log.type === 'error' ? 'text-red-400' :
+                        'text-indigo-400'
+                      }>{log.msg}</span>
+                    </div>
+                  ))}
+                  {logs.length === 0 && <div className="text-slate-700 text-center py-10 italic">No activity logs yet.</div>}
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Convergence Report Construction Area (Only visible at end) */}
+          {phase === 5 && (
+            <section className="bg-indigo-950/30 border border-indigo-500/30 rounded-xl p-6 shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-700">
+               <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-indigo-500 rounded-lg">
+                  <Cpu className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white tracking-tight">Final Convergence Protocol</h2>
+                  <p className="text-xs text-indigo-300">The meta-executive must now synthesize the six DMN outputs.</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-slate-900/80 p-4 rounded-lg border border-slate-800">
+                  <h3 className="text-xs font-bold text-emerald-400 uppercase mb-2">Q1: Consensus Signal</h3>
+                  <p className="text-[11px] text-slate-400 mb-4">What survived independently across all three cognitive configurations?</p>
+                  <textarea className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs h-24 focus:border-indigo-500 outline-none" placeholder="Enter findings..." />
+                </div>
+                <div className="bg-slate-900/80 p-4 rounded-lg border border-slate-800">
+                  <h3 className="text-xs font-bold text-amber-400 uppercase mb-2">Q2: Shadow Finding</h3>
+                  <p className="text-[11px] text-slate-400 mb-4">What exactly ONE brain flagged that the others structurally missed?</p>
+                  <textarea className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs h-24 focus:border-indigo-500 outline-none" placeholder="Enter asymmetry..." />
+                </div>
+                <div className="bg-slate-900/80 p-4 rounded-lg border border-slate-800">
+                  <h3 className="text-xs font-bold text-purple-400 uppercase mb-2">Q3: Emergent Output</h3>
+                  <p className="text-[11px] text-slate-400 mb-4">What becomes visible only when reading all six outputs together from above?</p>
+                  <textarea className="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs h-24 focus:border-indigo-500 outline-none" placeholder="Enter emergence..." />
+                </div>
+              </div>
+
+              <button onClick={() => window.print()} className="mt-6 px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg text-xs transition-all uppercase tracking-widest">
+                Print Convergence Report
+              </button>
+            </section>
+          )}
+
+        </div>
+      </main>
+
+      {/* Footer Info */}
+      <footer className="text-[9px] text-slate-600 flex justify-between items-center border-t border-slate-900 pt-4 mt-auto">
+        <p>© 2024 COUNCIL OF COGNITIVE CHAINS | DISTRIBUTED AI REASONING FRAMEWORK</p>
+        <p className="flex items-center gap-2">
+          <Lock className="w-2 h-2" />
+          SECURE PROTOCOL ACTIVE
+        </p>
+      </footer>
+    </div>
+  );
+}
+
+// --- SUB-COMPONENTS ---
+
+function StateItem({ label, status }) {
+  const isDone = status.includes("DONE") || status.includes("READY");
+  return (
+    <div className="flex justify-between items-center text-[10px]">
+      <span className="text-slate-400 font-bold uppercase">{label}:</span>
+      <span className={`px-2 py-0.5 rounded ${isDone ? 'bg-emerald-900/30 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
+        [{status}]
+      </span>
+    </div>
+  );
+}
+
+function PhaseStep({ num, label, active, done }) {
+  return (
+    <div className={`flex items-center gap-2 p-1.5 rounded-lg transition-all ${active ? 'bg-indigo-900/30 border border-indigo-500/30' : 'opacity-60'}`}>
+      <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold ${done ? 'bg-emerald-500 text-white' : active ? 'bg-indigo-500 text-white' : 'bg-slate-800 text-slate-600'}`}>
+        {done ? <CheckCircle2 className="w-3 h-3" /> : num}
+      </div>
+      <span className={`text-[10px] ${active ? 'text-indigo-300 font-bold' : done ? 'text-emerald-500' : 'text-slate-600'}`}>{label}</span>
+    </div>
+  );
+}
+
+function BrainResult({ brain, title, data, isDual }) {
+  return (
+    <div className="border-b border-slate-900">
+      <div className="bg-slate-900/50 px-4 py-2 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Brain className={`w-3 h-3 ${brain === 'A' ? 'text-blue-400' : brain === 'B' ? 'text-red-400' : 'text-purple-400'}`} />
+          <span className="font-bold text-slate-300 uppercase tracking-tighter">Brain {brain} <span className="text-[10px] text-slate-500 ml-2 font-normal opacity-70">({title})</span></span>
+        </div>
+        <div className="flex gap-2">
+          {data.phase1 && <Tag label="PHASE 1" color="slate" />}
+          {data.phase4 && <Tag label="PHASE 4" color="indigo" />}
+        </div>
+      </div>
+      <div className="p-4 space-y-4">
+        {data.phase1 && (
+          <div>
+            <div className="text-[10px] text-slate-500 uppercase mb-1 font-bold">Phase 1 Output</div>
+            <div className="p-3 bg-slate-900 rounded border border-slate-800 max-h-40 overflow-y-auto whitespace-pre-wrap scrollbar-thin">
+              {data.phase1}
+            </div>
+          </div>
+        )}
+        {data.phase4 && (
+          <div>
+            <div className="text-[10px] text-indigo-400 uppercase mb-1 font-bold">Phase 4 (Integrated)</div>
+            <div className="p-3 bg-indigo-950/20 rounded border border-indigo-500/20 max-h-40 overflow-y-auto whitespace-pre-wrap scrollbar-thin text-indigo-50">
+              {data.phase4}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Tag({ label, color }) {
+  const colors = {
+    slate: "bg-slate-800 text-slate-400 border-slate-700",
+    indigo: "bg-indigo-900/30 text-indigo-400 border-indigo-500/30",
+    emerald: "bg-emerald-900/30 text-emerald-400 border-emerald-500/30"
+  };
+  return <span className={`text-[8px] px-1.5 py-0.5 rounded border ${colors[color]}`}>{label}</span>;
+}
+
+function PlayIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform">
+      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+    </svg>
+  );
+}
