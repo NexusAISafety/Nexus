@@ -12,7 +12,116 @@ li { margin: 15px 0; }
 <body>
 <h1>Nexus AI Safety</h1>
 <p>Browser-native OS, transaction protocol, self-modifying AI runtime, and cognitive research methodology. Single HTML files. Zero dependencies.</p>
-<ul>
+<ul><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI Safety</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 60px 20px;
+        }
+        .container { max-width: 640px; width: 100%; }
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: #ffffff;
+        }
+        .subtitle {
+            color: #888;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 2.5rem;
+        }
+        .links {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .links a {
+            display: block;
+            padding: 16px 20px;
+            background: #161616;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            color: #ffffff;
+            text-decoration: none;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .links a:hover {
+            border-color: #555;
+            background: #1c1c1c;
+        }
+        .links .label {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .links .desc {
+            font-size: 0.85rem;
+            color: #888;
+        }
+        .footer {
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #222;
+            font-size: 0.85rem;
+            color: #555;
+        }
+        .footer a { color: #888; text-decoration: none; }
+        .footer a:hover { color: #bbb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Nexus AI Safety</h1>
+        <p class="subtitle">Browser-native OS, transaction protocol, self-modifying AI runtime, and cognitive research methodology. Single HTML files. Zero dependencies.</p>
+
+        <ul class="links">
+            <li>
+                <a href="Nexus-Browser-OS.HTML">
+                    <div class="label">Nexus Browser OS</div>
+                    <div class="desc">Microkernel with iframe process isolation, capability-gated IPC, and cryptographic boot handshake</div>
+                </a>
+            </li>
+            <li>
+                <a href="Nexus-Wallet.HTML">
+                    <div class="label">Nexus Wallet</div>
+                    <div class="desc">UTXO transaction protocol with ECDSA-P256 signing, escrow primitives, and dual transport</div>
+                </a>
+            </li>
+            <li>
+                <a href="Nexus-Agents.HTML">
+                    <div class="label">Nexus Agents</div>
+                    <div class="desc">Self-modifying agent runtime with AI evolution engine and generational lineage</div>
+                </a>
+            </li>
+            <li>
+                <a href="Council/">
+                    <div class="label">Council</div>
+                    <div class="desc">Multi-instance adversarial cognitive architecture — methodology docs</div>
+                </a>
+            </li>
+        </ul>
+
+        <div class="footer">
+            <a href="https://github.com/NexusAISafety/Nexus">GitHub Repository</a> &middot;
+            <a href="Case%20Study.md">Case Study</a> &middot;
+            MPL-2.0 / CC BY-SA 4.0
+        </div>
+    </div>
+</body>
+</html>
+
 <li><a href="./Kernel/nexus-os.html">Kernel</a> — Microkernel with process isolation and cryptographic security</li>
 <li><a href="./Wallet/wallet-v4.html">Wallet</a> — UTXO transaction protocol with ECDSA signing</li>
 <li><a href="./Phase5/nexus-phase5.html">Phase 5</a> — Self-modifying agent runtime</li>
