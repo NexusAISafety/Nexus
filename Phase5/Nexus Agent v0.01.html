@@ -615,67 +615,6 @@ body {
 </div>
 <div id="nx-overlay-root"><div id="nx-ver-overlay" data-module="verification-drilldown"><div id="nx-ver-modal" role="dialog" aria-modal="true" aria-label="Verification report"></div></div></div></div>
 <script>
-/* ══════════════════════════════════════════════════════════════
-   NEXUS OS KERNEL SHIM v1.1
-   Per 🪨-B6 spec. Enables this app to run as an OS-managed block.
-   Falls back gracefully when opened standalone (no OS).
-   ══════════════════════════════════════════════════════════════ */
-(function() {
-  var _port = null, _mounted = false, _blockId = null;
-  var _manifest = {
-    emits: ['ai.session.created','ai.response.complete','ai.agent.started','ai.agent.complete','ai.evolve.mutation.applied','ai.wire.status'],
-    consumes: ['wallet.identity.changed','wallet.balance.changed','fs.mounted']
-  };
-  var _app = { title: 'NEXUS AI', icon: '⬢', description: 'Chat, agents, creative workspace', visible: true };
-  var _subs = {};
-
-  window.addEventListener('message', function(e) {
-    if (e.data && e.data.type === 'BOOT' && e.ports && e.ports[0]) {
-      _blockId = e.data.blockId;
-      _port = e.ports[0];
-      _port.onmessage = _onMsg;
-      _port.postMessage({ type: 'DECLARE', manifest: _manifest, app: _app });
-    }
-  }, false);
-
-  function _onMsg(e) {
-    var msg = e.data;
-    if (!msg || !msg.type) return;
-    switch (msg.type) {
-      case 'MOUNT_CHALLENGE':
-        _port.postMessage({ type: 'MOUNT_ACK', nonce: msg.nonce });
-        _mounted = true;
-        break;
-      case 'PING':
-        _port.postMessage({ type: 'PONG', nonce: msg.nonce });
-        break;
-      case 'MSG':
-        if (msg.channel && _subs[msg.channel]) {
-          for (var i = 0; i < _subs[msg.channel].length; i++) {
-            try { _subs[msg.channel][i](msg.payload, msg.src); } catch(err) {}
-          }
-        }
-        break;
-    }
-  }
-
-  window.NX_EMIT = function(channel, payload) {
-    if (!_port || !_mounted) return;
-    if (_manifest.emits.indexOf(channel) === -1) return;
-    try { _port.postMessage({ type: 'EMIT', channel: channel, payload: payload }); } catch(err) {}
-  };
-
-  window.NX_SUB = function(channel, callback) {
-    if (_manifest.consumes.indexOf(channel) === -1) return;
-    if (!_subs[channel]) _subs[channel] = [];
-    _subs[channel].push(callback);
-    if (_port) { try { _port.postMessage({ type: 'SUB', channel: channel }); } catch(err) {} }
-  };
-
-  window.NX_BUS = { emit: window.NX_EMIT, sub: window.NX_SUB, mounted: function() { return _mounted; } };
-})();
-</script>
-<script>
 // === NEXUS Global Object ===
 window.NEXUS = {
   state: {
@@ -7415,42 +7354,6 @@ Respond with JSON only.`;
   boot();
 })();
 // === END CHUNK 15 ===
-</script>
-
-<script>
-// === OS IPC BRIDGE — Wallet identity + balance via kernel shim ===
-// Satellite: subscribes to wallet IPC channels for cross-app state.
-// Safe no-op when running standalone (NX_SUB won't exist).
-(function() {
-  if (typeof NX_SUB !== 'function') return;
-
-  NX_SUB('wallet.identity.changed', function(payload) {
-    if (!payload || !payload.sid) return;
-    console.log('[NX-IPC] Wallet identity received: SID ' + payload.sid);
-    // Store for future use by agents and UI
-    window.__nxWalletIdentity = payload;
-    if (typeof NEXUS !== 'undefined' && NEXUS.hooks && typeof NEXUS.hooks.emit === 'function') {
-      NEXUS.hooks.emit('wallet:identity-changed', payload);
-    }
-  });
-
-  NX_SUB('wallet.balance.changed', function(payload) {
-    if (!payload) return;
-    console.log('[NX-IPC] Wallet balance updated');
-    window.__nxWalletBalance = payload;
-    if (typeof NEXUS !== 'undefined' && NEXUS.hooks && typeof NEXUS.hooks.emit === 'function') {
-      NEXUS.hooks.emit('wallet:balance-changed', payload);
-    }
-  });
-
-  NX_SUB('fs.mounted', function(payload) {
-    if (!payload) return;
-    console.log('[NX-IPC] Filesystem mounted:', payload.name);
-    if (typeof NEXUS !== 'undefined' && NEXUS.hooks && typeof NEXUS.hooks.emit === 'function') {
-      NEXUS.hooks.emit('fs:mounted', payload);
-    }
-  });
-})();
 </script>
 
 <script>
